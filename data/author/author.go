@@ -1,4 +1,4 @@
-package data
+package author
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-func AddAuthor(dbpool *pgxpool.Pool, author domain.AddAuthorReq) domain.AuthorRes {
+func Add(dbpool *pgxpool.Pool, author domain.AddAuthorReq) domain.AuthorRes {
 	q := "INSERT INTO author(id, alias, platform, platform_alias_id) VALUES($1, $2, $3, $4) RETURNING id, alias, platform, platform_alias_id"
 	ctx := context.Background()
 	tx, err := dbpool.BeginTx(ctx, pgx.TxOptions{})
@@ -21,6 +21,16 @@ func AddAuthor(dbpool *pgxpool.Pool, author domain.AddAuthorReq) domain.AuthorRe
 		log.Fatal("error: ", err)
 	}
 	return author_res
+}
+
+func Get(dbpool *pgxpool.Pool, id string) domain.AuthorRes {
+	q := "SELECT id, alias, platform, platform_alias_id FROM author WHERE id = $1"
+	var author domain.AuthorRes
+	err := dbpool.QueryRow(context.Background(), q, id).Scan(&author.Id, &author.Alias, &author.Platform, &author.PlatformAliasId)
+	if err != nil {
+		log.Print("error: ", err)
+	}
+	return author
 }
 
 func GetAuthors(dbpool *pgxpool.Pool) []domain.AuthorRes {
@@ -42,17 +52,7 @@ func GetAuthors(dbpool *pgxpool.Pool) []domain.AuthorRes {
 	return authors
 }
 
-func GetAuthor(dbpool *pgxpool.Pool, id string) domain.AuthorRes {
-	q := "SELECT id, alias, platform, platform_alias_id FROM author WHERE id = $1"
-	var author domain.AuthorRes
-	err := dbpool.QueryRow(context.Background(), q, id).Scan(&author.Id, &author.Alias, &author.Platform, &author.PlatformAliasId)
-	if err != nil {
-		log.Fatal("error: ", err)
-	}
-	return author
-}
-
-func GetAuthorByPlatformAliasId(dbpool *pgxpool.Pool, platform_alias_id *uint64) domain.AuthorRes {
+func GetByPlatformAliasId(dbpool *pgxpool.Pool, platform_alias_id *uint64) domain.AuthorRes {
 	q := "SELECT id, alias, platform, platform_alias_id FROM author WHERE platform_alias_id = $1"
 	var author domain.AuthorRes
 	_ = dbpool.QueryRow(context.Background(), q, platform_alias_id).Scan(&author.Id, &author.Alias, &author.Platform, &author.PlatformAliasId)
@@ -61,7 +61,7 @@ func GetAuthorByPlatformAliasId(dbpool *pgxpool.Pool, platform_alias_id *uint64)
 	return author
 }
 
-func DeleteAuthor(dbpool *pgxpool.Pool, id string) {
+func Delete(dbpool *pgxpool.Pool, id string) {
 	q := "DELETE FROM author WHERE id = $1"
 	ctx := context.Background()
 	// TODO - update Isolation level (pgx.TxOptions{})

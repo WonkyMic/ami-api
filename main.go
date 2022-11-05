@@ -6,7 +6,9 @@ import (
 	"log"
 	"os"
 	"wonky/ami-api/domain"
-	"wonky/ami-api/data"
+	"wonky/ami-api/data/author"
+	"wonky/ami-api/data/message"
+	// "wonky/ami-api/data/reaction"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -21,49 +23,57 @@ func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 
 	msg := r.Group("/ami/message") 
 	{
-		
 		msg.POST("/", func(c *gin.Context){
 			var message_req domain.MessageReq
 			c.BindJSON(&message_req)
-			c.JSON(http.StatusCreated, message_req)
+
+			// Check if author exists
+			author_check := author.Get(dbpool, message_req.AuthorId)
+			if (domain.AuthorRes{}) == author_check {
+				c.JSON(http.StatusBadRequest, gin.H{"message": "Author not found"})
+			} else {
+				message_res := message.Add(dbpool, message_req)
+				c.JSON(http.StatusCreated, message_res)
+			} 
 		})
-		msg.GET("/:id/reply", func(c *gin.Context) {
+		msg.GET("/:id", func(c *gin.Context) {
 			id := c.Params.ByName("id")
-			c.JSON(http.StatusOK, gin.H{"message": "Reply for id: " + id})
+			message_res := message.Get(dbpool, id)
+			c.JSON(http.StatusOK, message_res)
 		})
-		msg.POST("/:id/feedback", func(c *gin.Context) {
-			id := c.Params.ByName("id")
-			c.JSON(http.StatusCreated, gin.H{"message": "Stored for id: " + id})
+		msg.GET("/", func(c *gin.Context) {
+			message_ids := message.GetIdList(dbpool)
+			c.JSON(http.StatusOK, message_ids)
 		})
 	}
 
-	author := r.Group("/ami/author")
+	author_route := r.Group("/ami/author")
 	{
-		author.POST("/", func(c *gin.Context) {
+		author_route.POST("/", func(c *gin.Context) {
 			var add_author_req domain.AddAuthorReq
 			c.BindJSON(&add_author_req)
 
 			// Check if author already exists
-			author_check := data.GetAuthorByPlatformAliasId(dbpool, &add_author_req.PlatformAliasId)
+			author_check := author.GetByPlatformAliasId(dbpool, &add_author_req.PlatformAliasId)
 			if (domain.AuthorRes{}) != author_check {
 				c.JSON(http.StatusFound, gin.H{"message": "Author already exists"})
 			} else {
-				author_res := data.AddAuthor(dbpool, add_author_req)
+				author_res := author.Add(dbpool, add_author_req)
 				c.JSON(http.StatusCreated, author_res)
 			}
 		})
-		author.GET("/", func(c *gin.Context) {
-			authors := data.GetAuthors(dbpool)
+		author_route.GET("/", func(c *gin.Context) {
+			authors := author.GetAuthors(dbpool)
 			c.JSON(http.StatusOK, authors)
 		})
-		author.GET("/:id", func(c *gin.Context) {
+		author_route.GET("/:id", func(c *gin.Context) {
 			id := c.Params.ByName("id")
-			author := data.GetAuthor(dbpool, id)
+			author := author.Get(dbpool, id)
 			c.JSON(http.StatusOK, author)
 		})
-		author.DELETE("/:id", func(c *gin.Context) {
+		author_route.DELETE("/:id", func(c *gin.Context) {
 			id := c.Params.ByName("id")
-			data.DeleteAuthor(dbpool, id)
+			author.Delete(dbpool, id)
 			c.JSON(http.StatusOK, gin.H{"message": "Author Deleted"})
 		})
 	}

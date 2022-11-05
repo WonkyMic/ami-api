@@ -5,13 +5,20 @@ import (
 )
 
 type MessageReq struct {
-	Author string
+	AuthorId string
 	Content	string
 	Platform string
 }
 
 type MessageRes struct {
-	Id string
+	Id uuid.UUID
+	AuthorId uuid.UUID
+	Content	string
+	Platform string
+}
+
+type MessageId struct {
+	Id uuid.UUID
 }
 
 type AddAuthorReq struct {
