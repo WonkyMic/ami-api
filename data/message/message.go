@@ -28,7 +28,7 @@ func Get(dbpool *pgxpool.Pool, id string) domain.MessageRes {
 	var message_res domain.MessageRes
 	err := dbpool.QueryRow(context.Background(), q, id).Scan(&message_res.Id, &message_res.AuthorId, &message_res.Content, &message_res.Platform)
 	if err != nil {
-		log.Fatal("error: ", err)
+		log.Print("error: ", err)
 	}
 	return message_res
 }

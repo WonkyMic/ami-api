@@ -8,7 +8,7 @@ import (
 	"wonky/ami-api/domain"
 	"wonky/ami-api/data/author"
 	"wonky/ami-api/data/message"
-	// "wonky/ami-api/data/reaction"
+	"wonky/ami-api/data/reaction"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -45,6 +45,11 @@ func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 			message_ids := message.GetIdList(dbpool)
 			c.JSON(http.StatusOK, message_ids)
 		})
+		msg.GET("/:id/reactions", func(c *gin.Context) {
+			id := c.Params.ByName("id")
+			reactions := reaction.GetMessageReactions(dbpool, id)
+			c.JSON(http.StatusOK, reactions)
+		})
 	}
 
 	author_route := r.Group("/ami/author")
@@ -71,10 +76,51 @@ func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 			author := author.Get(dbpool, id)
 			c.JSON(http.StatusOK, author)
 		})
+		author_route.GET("/:id/reactions", func(c *gin.Context) {
+			id := c.Params.ByName("id")
+			reactions := reaction.GetAuthorReactions(dbpool, id)
+			c.JSON(http.StatusOK, reactions)
+		})
 		author_route.DELETE("/:id", func(c *gin.Context) {
 			id := c.Params.ByName("id")
 			author.Delete(dbpool, id)
 			c.JSON(http.StatusOK, gin.H{"message": "Author Deleted"})
+		})
+	}
+
+	reaction_route := r.Group("/ami/reaction")
+	{
+		reaction_route.POST("/", func(c *gin.Context) {
+			var add_reaction_req domain.Reaction
+			c.BindJSON(&add_reaction_req)
+
+			// Check if message exists
+			message_check := message.Get(dbpool, add_reaction_req.MessageId)
+			if (domain.MessageRes{}) == message_check {
+				c.JSON(http.StatusNotFound, gin.H{"message": "MessageId for Reaction not found"})
+				return
+			}
+			// Check if author exists
+			author_check := author.Get(dbpool, add_reaction_req.AuthorId)
+			if (domain.AuthorRes{}) == author_check {
+				c.JSON(http.StatusNotFound, gin.H{"message": "AuthorId for Reaction not found"})
+				return
+			}
+			// Check if reaction relationship already exists
+			reaction_check := reaction.Get(dbpool, add_reaction_req)
+			if (domain.Reaction{}) != reaction_check {
+				c.JSON(http.StatusBadRequest, gin.H{"message": "Reaction already exists"})
+				return
+			}
+
+			reaction_res := reaction.Add(dbpool, add_reaction_req)
+			c.JSON(http.StatusCreated, reaction_res)
+		})
+		reaction_route.DELETE("/", func(c *gin.Context) {
+			var reaction_req domain.Reaction
+			c.BindJSON(&reaction_req)
+			reaction.Delete(dbpool, reaction_req)
+			c.JSON(http.StatusOK, gin.H{"message": "Reaction Deleted"})
 		})
 	}
 

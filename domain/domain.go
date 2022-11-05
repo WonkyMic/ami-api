@@ -33,3 +33,9 @@ type AuthorRes struct {
 	Platform string
 	PlatformAliasId uint64
 }
+
+type Reaction struct {
+	MessageId string
+	AuthorId string
+	Reaction uint64
+}
