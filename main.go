@@ -17,6 +17,9 @@ import (
 func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 	r := gin.Default()
 	
+	r.GET("/ami/health", func(c *gin.Context) {
+		c.String(http.StatusOK, "we good")
+	})
 	r.GET("/ami/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})
