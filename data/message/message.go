@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"log"
+	"strconv"
 	"wonky/ami-api/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -33,6 +34,25 @@ func Get(dbpool *pgxpool.Pool, id string) domain.MessageRes {
 	return message_res
 }
 
+func GetByAuthor(dbpool *pgxpool.Pool, id string) []domain.MessageRes {
+	q := "SELECT id, author_id, content, platform FROM message WHERE author_id = $1"
+	rows, err := dbpool.Query(context.Background(), q, id)
+	if err != nil {
+		log.Print("error: ", err)
+	}
+	defer rows.Close()
+	var messages []domain.MessageRes
+	for rows.Next() {
+		var message domain.MessageRes
+		err := rows.Scan(&message.Id, &message.AuthorId, &message.Content, &message.Platform)
+		if err != nil {
+			log.Fatal("error: ", err)
+		}
+		messages = append(messages, message)
+	}
+	return messages
+}
+
 func GetIdList(dbpool *pgxpool.Pool) []domain.MessageId {
 	q := "SELECT id FROM message"
 	rows, err := dbpool.Query(context.Background(), q)
@@ -51,17 +71,23 @@ func GetIdList(dbpool *pgxpool.Pool) []domain.MessageId {
 	}
 	return message_ids
 }
-
-func Delete(dbpool *pgxpool.Pool, id string) {
-	q := "DELETE FROM message WHERE id = $1"
+/**
+	When a Message is deleted all related reactions must be deleted
+**/
+func DeleteMessageAndReactions(dbpool *pgxpool.Pool, id string) {
+	qDelMessage := "DELETE FROM message WHERE id = $1"
+	qDelReactions := "DELETE FROM reactions WHERE message_id = $1"
 	ctx := context.Background()
 	// TODO - update Isolation level (pgx.TxOptions{})
 	tx, err := dbpool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Fatal("error: ", err)
 	}
-
-	_, err = tx.Exec(ctx, q, id)
+	_, err = tx.Exec(ctx, qDelMessage, id)
+	if err != nil {
+		log.Fatal("error: ", err)
+	}
+	_, err = tx.Exec(ctx, qDelReactions, id)
 	if err != nil {
 		log.Fatal("error: ", err)
 	}
@@ -69,4 +95,15 @@ func Delete(dbpool *pgxpool.Pool, id string) {
 	if err != nil {
 		log.Fatal("error: ", err)
 	}
+}
+
+func DeleteByAuthor(dbpool *pgxpool.Pool, id string) {
+	messages := GetByAuthor(dbpool, id)
+	deletedCount := 0
+	for _, message := range messages {
+		log.Print("Deleting Message and Reactions for Message ID: " + message.Id.String())
+		DeleteMessageAndReactions(dbpool, message.Id.String())
+		deletedCount += 1
+	}
+	log.Print(strconv.Itoa(deletedCount) + " messages deleted for Author ID: " + id)
 }

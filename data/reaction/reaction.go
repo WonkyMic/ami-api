@@ -84,3 +84,39 @@ func Delete(dbpool *pgxpool.Pool, reaction_req domain.Reaction) {
 		log.Fatal("error: ", err)
 	}
 }
+
+func DeleteByAuthor(dbpool *pgxpool.Pool, id string) {
+	q := "DELETE FROM reactions WHERE author_id = $1"
+	ctx := context.Background()
+	// TODO - update Isolation level (pgx.TxOptions{})
+	tx, err := dbpool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		log.Fatal("error: ", err)
+	}
+	_, err = tx.Exec(ctx, q, id)
+	if err != nil {
+		log.Fatal("error: ", err)
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		log.Fatal("error: ", err)
+	}
+}
+
+func DeleteByMessage(dbpool *pgxpool.Pool, id string) {
+	q := "DELETE FROM reactions WHERE message_id = $1"
+	ctx := context.Background()
+	// TODO - update Isolation level (pgx.TxOptions{})
+	tx, err := dbpool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		log.Fatal("error: ", err)
+	}
+	_, err = tx.Exec(ctx, q, id)
+	if err != nil {
+		log.Fatal("error: ", err)
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		log.Fatal("error: ", err)
+	}
+}

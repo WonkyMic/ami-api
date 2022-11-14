@@ -13,7 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
-
+// TODO :: Return 404s instead of 'null' 200s
+// 		:: Null checks
 func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 	r := gin.Default()
 	
@@ -38,6 +39,11 @@ func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 				message_res := message.Add(dbpool, message_req)
 				c.JSON(http.StatusCreated, message_res)
 			} 
+		})
+		msg.DELETE("/:id", func(c *gin.Context) {
+			id := c.Params.ByName("id")
+			message.DeleteMessageAndReactions(dbpool, id)
+			c.JSON(http.StatusOK, gin.H{"message": "Message Deleted"})
 		})
 		msg.GET("/:id", func(c *gin.Context) {
 			id := c.Params.ByName("id")
@@ -79,6 +85,11 @@ func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 			author := author.Get(dbpool, id)
 			c.JSON(http.StatusOK, author)
 		})
+		author_route.GET("/:id/messages", func(c *gin.Context) {
+			id := c.Params.ByName("id")
+			messages := message.GetByAuthor(dbpool, id)
+			c.JSON(http.StatusOK, messages)
+		})
 		author_route.GET("/:id/reactions", func(c *gin.Context) {
 			id := c.Params.ByName("id")
 			reactions := reaction.GetAuthorReactions(dbpool, id)
@@ -86,6 +97,11 @@ func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 		})
 		author_route.DELETE("/:id", func(c *gin.Context) {
 			id := c.Params.ByName("id")
+			// Delete Reactions for Author
+			reaction.DeleteByAuthor(dbpool, id)
+			// Delete messages and related message reactions by Author
+			message.DeleteByAuthor(dbpool, id)
+			// Delete Author
 			author.Delete(dbpool, id)
 			c.JSON(http.StatusOK, gin.H{"message": "Author Deleted"})
 		})
