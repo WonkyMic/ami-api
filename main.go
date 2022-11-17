@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"log"
 	"os"
+	"strconv"
+
 	"wonky/ami-api/domain"
 	"wonky/ami-api/data/author"
 	"wonky/ami-api/data/message"
@@ -79,6 +81,14 @@ func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 		author_route.GET("/", func(c *gin.Context) {
 			authors := author.GetAuthors(dbpool)
 			c.JSON(http.StatusOK, authors)
+		})
+		author_route.GET("/search", func(c *gin.Context) {
+			platform_id, err := strconv.ParseUint(c.Query("platformAliasId"), 10, 64)
+			if err != nil {
+				log.Fatal("error parsing query param: ", err)
+			}
+			author := author.GetByPlatformAliasId(dbpool, &platform_id)
+			c.JSON(http.StatusOK, author)
 		})
 		author_route.GET("/:id", func(c *gin.Context) {
 			id := c.Params.ByName("id")
