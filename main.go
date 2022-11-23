@@ -88,7 +88,11 @@ func setupRouter(dbpool *pgxpool.Pool) *gin.Engine {
 				log.Fatal("error parsing query param: ", err)
 			}
 			author := author.GetByPlatformAliasId(dbpool, &platform_id)
-			c.JSON(http.StatusOK, author)
+			if (domain.AuthorRes{}) == author {
+				c.JSON(http.StatusNotFound, "message: No Author Found")
+			} else {
+				c.JSON(http.StatusOK, author)
+			}
 		})
 		author_route.GET("/:id", func(c *gin.Context) {
 			id := c.Params.ByName("id")
